@@ -1,0 +1,100 @@
+mysql> use sqoop;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> select * from locations;
++----+-------------+
+| id | state       |
++----+-------------+
+|  8 | KERALA      |
+|  3 | HP          |
+|  4 | AP          |
+|  5 | MAHARASHTRA |
+|  1 | UP          |
+|  2 | BIHAR       |
+|  6 | GOA         |
+|  7 | TN          |
++----+-------------+
+8 rows in set (0.00 sec)
+
+mysql> 
+
+
+[acadgild@localhost ~]$ sqoop import --connect jdbc:mysql://localhost/sqoop --username 'root' -P --table 'locations' --target-dir '/user/acadgild/inchive' --hive-import -m 1;
+
+^C[acadgild@localhost ~]$ hadoop fs -ls /user/acadgild/in*
+17/04/21 00:52:20 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Found 2 items
+-rw-r--r--   1 acadgild supergroup          0 2017-04-21 00:51 /user/acadgild/inchive/_SUCCESS
+-rw-r--r--   1 acadgild supergroup         57 2017-04-21 00:51 /user/acadgild/inchive/part-m-00000
+[acadgild@localhost ~]$ hadoop fs -cat /user/acadgild/in*/p*
+17/04/21 00:52:45 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+8,KERALA
+3,HP
+4,AP
+5,MAHARASHTRA
+1,UP
+2,BIHAR
+6,GOA
+7,TN
+[acadgild@localhost ~]$ 
+
+
+hive> use default;
+OK
+Time taken: 1.007 seconds
+hive> 
+
+
+hive> create table if not exists locations (id int, state string) row format delimited fields terminated by ',' lines terminated by '\n'  stored as textfile  location '/user/acadgild/inchive';
+OK
+Time taken: 1.904 seconds
+
+
+hive> select * from locations;
+OK
+1	UP
+2	BIHAR
+3	MP
+4	AP
+5	MAHARASHTRA
+6	GOA
+7	TN
+8	KERALA
+Time taken: 1.222 seconds, Fetched: 8 row(s)
+
+
+
+mysql> use sqoop;
+
+mysql> insert into locations values(9,'UTHRAKAND');
+Query OK, 1 row affected (0.08 sec)
+
+mysql> insert into locations values(10,'KARNATAKA');
+Query OK, 1 row affected (0.00 sec)
+
+
+
+[acadgild@localhost ~]$sqoop import --connect jdbc:mysql://localhost/sqoop --username 'root' -P --table 'locations' --target-dir '/user/acadgild/incpart' --incremental append --check-column id --last-value 8 -m 1;
+
+[acadgild@localhost ~]$ hadoop fs -ls /user/acadgild/incpart
+17/04/21 01:06:03 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Found 2 items
+-rw-r--r--   1 acadgild supergroup          0 2017-04-21 00:51 /user/acadgild/incpart/_SUCCESS
+-rw-r--r--   1 acadgild supergroup         57 2017-04-21 00:55 /user/acadgild/incpart/part-r-00000
+
+hive> select * from locations;
+OK
+1	UP
+2	BIHAR
+3	MP
+4	AP
+5	MAHARASHTRA
+6	GOA
+7	TN
+8	KERALA
+9	UTHRAKAND
+10	KARNATAKA
+Time taken: 1.222 seconds, Fetched: 10 row(s)
+
